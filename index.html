@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vipper — Central de Monitoramento LPR</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('vipper-theme')||'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#F2F4F8; --panel:#FFFFFF; --panel-2:#FAFBFD; --raise:#EEF1F6;
+  --border:#E3E8F0; --border-2:#CBD4E1;
+  --text:#1B2330; --muted:#5B6678; --faint:#8D97AA;
+  --brand:#2563EB; --brand-dim:#E7EEFD;
+  --green:#0E9F73; --green-dim:#DDF3EA; --green-bd:#AFE0CE;
+  --red:#D93A40; --red-dim:#FCE5E6;
+  --amber:#A9720C; --amber-dim:#FAF0D7; --amber-bd:#E6D3A3;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  --shadow-lg:0 8px 24px rgba(16,24,40,.16);
+  --mono:'IBM Plex Mono',monospace; --body:'Inter',system-ui,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0B0E13; --panel:#12161E; --panel-2:#0E1219; --raise:#171C26;
+  --border:#1F2630; --border-2:#2A3342;
+  --text:#E9ECF1; --muted:#8A93A5; --faint:#5C6577;
+  --brand:#4D8DFF; --brand-dim:#12203A;
+  --green:#2DD4A7; --green-dim:#0E2B23; --green-bd:#1C4A3B;
+  --red:#FF5C5C; --red-dim:#331517;
+  --amber:#F5B02E; --amber-dim:#332708; --amber-bd:#4A3A12;
+  --shadow:none;
+  --shadow-lg:0 8px 24px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:14px;min-height:100vh}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:4px}::-webkit-scrollbar-track{background:transparent}
+
+/* ===== APP SHELL ===== */
+.app{display:grid;grid-template-columns:232px 1fr;grid-template-rows:1fr auto;min-height:100vh}
+.sidebar{grid-row:1/3;background:var(--panel-2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.main{display:flex;flex-direction:column;min-width:0}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)}
+.brand-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--brand),#2E5FCC);display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff;letter-spacing:-.02em}
+.brand-name{font-weight:700;font-size:15px;letter-spacing:.01em}
+.brand-name small{display:block;font-weight:500;font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:1px}
+.nav{padding:14px 10px;flex:1;overflow-y:auto}
+.nav-section{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:14px 10px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;user-select:none;transition:background .12s,color .12s;text-decoration:none}
+.nav-item:hover{background:var(--raise);color:var(--text)}
+.nav-item.active{background:var(--brand-dim);color:var(--brand);font-weight:600}
+.nav-item .ic{width:17px;text-align:center;font-size:14px;opacity:.9}
+.nav-item .count{margin-left:auto;font-family:var(--mono);font-size:10.5px;background:var(--red-dim);color:var(--red);padding:1px 7px;border-radius:99px;font-weight:600}
+.nav-item .count:empty{display:none}
+.sidebar-foot{border-top:1px solid var(--border);padding:12px 14px;display:flex;align-items:center;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--raise);border:1px solid var(--border-2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--brand)}
+.sf-name{font-size:12.5px;font-weight:600;line-height:1.2}
+.sf-role{font-size:10.5px;color:var(--muted)}
+
+/* topbar */
+.topbar{display:flex;align-items:center;gap:14px;padding:0 22px;height:52px;border-bottom:1px solid var(--border);background:var(--panel-2);position:sticky;top:0;z-index:20}
+.crumb{font-size:12.5px;color:var(--muted)}
+.crumb b{color:var(--text);font-weight:600}
+.crumb span{margin:0 7px;color:var(--faint)}
+.topbar .spacer{flex:1}
+.site-select{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12.5px;color:var(--text);cursor:pointer}
+.site-select:hover{border-color:var(--border-2)}
+.site-select .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.site-select small{color:var(--faint);font-size:11px}
+.icon-btn{background:var(--panel);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:grid;place-items:center;font-size:15px;cursor:pointer;padding:0;line-height:1}
+.icon-btn:hover{border-color:var(--border-2);background:var(--raise);filter:none!important}
+.top-clock{font-family:var(--mono);font-size:12.5px;color:var(--muted);letter-spacing:.03em}
+
+/* ===== CONTENT ===== */
+.content{flex:1;padding:20px 22px 26px;display:flex;flex-direction:column;gap:16px;max-width:1440px;width:100%;margin:0 auto}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.page-head h1{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.page-head .sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+.head-right{display:flex;align-items:center;gap:10px}
+.env-chip{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;color:var(--amber);background:var(--amber-dim);border:1px solid var(--amber-bd);padding:5px 10px;border-radius:6px;text-transform:uppercase}
+.status-pill{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.05em;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .2s}
+.status-pill[data-state="OPEN"]{color:var(--green);border-color:var(--green-bd);background:var(--green-dim)}
+.status-pill[data-state="OPEN"] .status-dot{background:var(--green);box-shadow:0 0 8px var(--green)}
+.status-pill[data-state="OPENING"],.status-pill[data-state="CLOSING"]{color:var(--amber);border-color:var(--amber-bd);background:var(--amber-dim)}
+.status-pill[data-state="OPENING"] .status-dot,.status-pill[data-state="CLOSING"] .status-dot{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px 12px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border-2)}
+.kpi.ok::before{background:var(--green)}.kpi.bad::before{background:var(--red)}.kpi.info::before{background:var(--brand)}
+.kpi .l{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.kpi .n{font-size:28px;font-weight:700;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi.ok .n{color:var(--green)}.kpi.bad .n{color:var(--red)}
+.kpi .d{font-size:11px;color:var(--faint);margin-top:2px}
+
+/* cards / grid */
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card-head{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-head h2{font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--text)}
+.card-head .tag{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.06em;margin-left:auto;text-transform:uppercase}
+.card-head .live{display:flex;align-items:center;gap:6px;margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--red)}
+.card-head .live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.card-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+
+/* ===== VIEWFINDER ===== */
+.viewfinder{position:relative;border-radius:8px;overflow:hidden;aspect-ratio:16/9;border:1px solid var(--border-2);
+ background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 24px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,transparent 1px 24px),
+  linear-gradient(180deg,#151B25 0%,#0D1118 62%,#131820 62%,#0B0E14 100%)}
+.viewfinder::before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.025) 50%,transparent 50%);background-size:100% 4px;pointer-events:none;opacity:.5}
+.vf-corner{position:absolute;width:18px;height:18px;border:2px solid rgba(255,255,255,.22);pointer-events:none}
+.vf-corner.tl{top:8px;left:8px;border-right:0;border-bottom:0}.vf-corner.tr{top:8px;right:8px;border-left:0;border-bottom:0}
+.vf-corner.bl{bottom:8px;left:8px;border-right:0;border-top:0}.vf-corner.br{bottom:8px;right:8px;border-left:0;border-top:0}
+.vf-top{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:space-between;padding:0 30px;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;pointer-events:none}
+.vf-rec{color:#FF5C5C}
+.vf-time{color:rgba(233,236,241,.75)}
+.cam-label{position:absolute;bottom:10px;left:30px;font-family:var(--mono);font-size:10px;color:rgba(233,236,241,.55);letter-spacing:.1em;pointer-events:none}
+.vf-meta{position:absolute;bottom:10px;right:30px;font-family:var(--mono);font-size:10px;color:rgba(233,236,241,.45);letter-spacing:.06em;pointer-events:none}
+.viewfinder.flash{animation:flash .55s}
+@keyframes flash{30%{box-shadow:inset 0 0 0 3px #FF5C5C}}
+.lane{position:absolute;left:0;right:0;bottom:44px;height:2px;background:repeating-linear-gradient(90deg,#3A4454 0 14px,transparent 14px 26px)}
+.lpr-line{position:absolute;top:16%;bottom:42px;left:52%;border-left:2px dashed rgba(245,176,46,.45)}
+.lpr-line::after{content:'LINHA DE LEITURA LPR';position:absolute;top:-2px;left:8px;font-family:var(--mono);font-size:9px;color:rgba(245,176,46,.8);letter-spacing:.14em;white-space:nowrap}
+.barrier-scene{position:absolute;left:15%;bottom:44px}
+.barrier-post{width:11px;height:66px;background:linear-gradient(180deg,#465062,#333B49);border-radius:2px 2px 0 0;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.barrier-arm{position:absolute;left:11px;bottom:60px;width:128px;height:9px;border-radius:4px;background:repeating-linear-gradient(45deg,#F5B02E 0 10px,#16181c 10px 20px);transform-origin:0% 50%;transition:transform .8s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,.55)}
+.barrier-arm.open{transform:rotate(-78deg)}
+.car{position:absolute;bottom:38px;font-size:23px;left:-40px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));animation:drive 2.6s linear forwards}
+@keyframes drive{0%{left:-40px;opacity:0}10%{opacity:1}85%{left:56%;opacity:1}100%{left:62%;opacity:0}}
+
+/* placa Mercosul */
+.plate{display:inline-flex;flex-direction:column;background:#fff;border-radius:4px;overflow:hidden;border:2px solid #101010;line-height:1;vertical-align:middle}
+.plate .band{background:#003DA5;color:#fff;font-family:var(--mono);font-size:6.5px;font-weight:600;text-align:center;letter-spacing:.28em;padding:2px 6px 1px}
+.plate .num{color:#101010;font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.1em;padding:2px 8px 3px}
+
+.osd{position:absolute;top:30%;left:22%;display:flex;align-items:center;gap:10px;background:rgba(9,12,17,.94);border:1.5px solid #2DD4A7;border-radius:8px;padding:8px 12px;opacity:0;transform:translateY(4px);transition:opacity .25s,transform .25s;pointer-events:none}
+.osd .tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.05em;color:#2DD4A7}
+.osd .tag small{display:block;font-size:9px;color:#8A93A5;font-weight:400;letter-spacing:.08em;margin-top:2px}
+.osd.show{opacity:1;transform:translateY(0)}
+.osd.violation{border-color:#FF5C5C;left:40%;top:48%}
+.osd.violation .tag{color:#FF5C5C}
+
+/* progress */
+.progress-track{height:5px;border-radius:3px;background:var(--panel-2);overflow:hidden;border:1px solid var(--border)}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),#F5B02E);transition:width .1s linear}
+.progress-label{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+
+/* console do operador */
+.console-sec{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:10px}
+.console-sec::after{content:'';flex:1;height:1px;background:var(--border)}
+.controls{display:flex;gap:9px;flex-wrap:wrap}
+button{font-family:var(--body);font-weight:600;font-size:12.5px;cursor:pointer;border-radius:8px;padding:9px 15px;border:1px solid transparent;transition:filter .15s,transform .05s;letter-spacing:.01em}
+button:active{transform:scale(.98)}
+button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+button:disabled{opacity:.35;cursor:not-allowed}
+.btn-primary{background:var(--green);color:#06251B}
+.btn-warn{background:var(--red);color:#2A0E0E}
+.btn-demo{background:transparent;color:var(--amber);border-color:var(--amber-bd)}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border)}
+button:hover:not(:disabled){filter:brightness(1.12)}
+.btn-ghost:hover:not(:disabled),.btn-demo:hover:not(:disabled){background:var(--raise);filter:none;color:var(--text)}
+.hint{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.03em}
+.hint b{color:var(--muted);font-weight:600;background:var(--raise);border:1px solid var(--border-2);border-radius:4px;padding:1px 6px;margin:0 1px}
+
+/* log */
+.log{font-family:var(--mono);font-size:12px;line-height:1.6;max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.log-empty,.empty-state{color:var(--faint);font-style:italic}
+.log-row{padding:6px 9px;border-radius:6px;display:flex;gap:9px}
+.log-row .t{color:var(--faint);flex-shrink:0}
+.log-row.info{color:var(--muted)}
+.log-row.success{background:var(--green-dim);color:var(--green)}
+.log-row.violation{background:var(--red-dim);color:var(--red)}
+
+/* tabela */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:6px 8px;border-bottom:1px solid var(--border)}
+tbody td{padding:8px;border-bottom:1px solid var(--border);font-family:var(--mono);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--raise)}
+.badge{background:var(--red-dim);color:var(--red);padding:3px 9px;border-radius:5px;font-size:10.5px;font-weight:600;white-space:nowrap;font-family:var(--body)}
+.empty-state{font-size:12.5px;padding:18px 8px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-style:normal}
+
+/* payload */
+.method-chip{font-family:var(--mono);font-size:10px;font-weight:600;background:var(--brand-dim);color:var(--brand);border-radius:5px;padding:2px 7px;letter-spacing:.05em}
+pre{font-family:var(--mono);font-size:11.5px;color:#8FE8BE;background:#0C1017;border:1px solid #232B37;border-radius:8px;padding:12px;overflow:auto;max-height:150px;line-height:1.55}
+
+/* statusbar */
+.statusbar{grid-column:2;display:flex;align-items:center;gap:18px;padding:7px 22px;border-top:1px solid var(--border);background:var(--panel-2);font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.04em;flex-wrap:wrap}
+.statusbar .ok{color:var(--green)}
+.statusbar .sep{color:var(--border-2)}
+.statusbar .right{margin-left:auto}
+
+/* ===== PÁGINAS / TELAS ===== */
+.page{display:none;flex-direction:column;gap:16px}
+.page.active{display:flex}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.field{background:var(--panel);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--body);font-size:12.5px;padding:8px 12px;outline:none}
+.field:focus{border-color:var(--brand)}
+select.field{cursor:pointer}
+.search{flex:1;max-width:320px}
+.toolbar .t-right{margin-left:auto;display:flex;gap:10px}
+.tag-ok,.tag-off,.tag-warn,.tag-info{font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:5px;white-space:nowrap;font-family:var(--body)}
+.tag-ok{background:var(--green-dim);color:var(--green)}
+.tag-off{background:var(--raise);color:var(--muted)}
+.tag-warn{background:var(--amber-dim);color:var(--amber)}
+.tag-info{background:var(--brand-dim);color:var(--brand)}
+
+/* câmeras */
+.cam-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.cam-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.cam-prev{aspect-ratio:16/9;position:relative;background:linear-gradient(160deg,#151B25,#0B0E14);display:grid;place-items:center}
+.cam-prev .lbl{font-family:var(--mono);font-size:10px;color:rgba(233,236,241,.4);letter-spacing:.12em}
+.cam-prev.off{background:repeating-linear-gradient(45deg,#0E1219 0 8px,#10141C 8px 16px)}
+.cam-prev.off .lbl{color:var(--red)}
+.cam-info{padding:11px 14px;display:flex;align-items:center;gap:8px}
+.cam-info .nm{font-size:12.5px;font-weight:600}
+.cam-info .mt{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:2px}
+.cam-info .st{margin-left:auto}
+
+/* relatórios */
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.report-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.report-card .ic{font-size:20px}
+.report-card h3{font-size:13.5px;font-weight:600}
+.report-card p{font-size:12px;color:var(--muted);line-height:1.5;flex:1}
+.report-card .acts{display:flex;gap:8px;margin-top:4px}
+
+/* integrações e configurações */
+.stack{display:flex;flex-direction:column;gap:12px}
+.row-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.row-card .ic{width:38px;height:38px;border-radius:9px;background:var(--raise);border:1px solid var(--border-2);display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.row-card .tx{flex:1;min-width:200px}
+.row-card h3{font-size:13px;font-weight:600}
+.row-card p{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.row-card code{font-family:var(--mono);font-size:10.5px;color:var(--brand);background:var(--brand-dim);padding:2px 7px;border-radius:5px}
+.switch{position:relative;width:38px;height:21px;border-radius:99px;background:var(--border-2);cursor:pointer;transition:background .15s;flex-shrink:0}
+.switch::after{content:'';position:absolute;top:2.5px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on{background:var(--green)}
+.switch.on::after{left:19px}
+
+/* toast */
+#toast{position:fixed;bottom:48px;left:50%;transform:translate(-50%,12px);background:var(--raise);border:1px solid var(--border-2);color:var(--text);font-size:12.5px;font-weight:500;padding:10px 18px;border-radius:9px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;box-shadow:var(--shadow-lg)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.card,.kpi,.row-card,.report-card,.cam-card{box-shadow:var(--shadow)}
+
+/* ===== RESPONSIVIDADE ===== */
+.menu-btn{display:none}
+.scrim{position:fixed;inset:0;background:rgba(10,14,22,.5);z-index:44;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.show{opacity:1;pointer-events:auto}
+
+@media (max-width:1080px){.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:0;bottom:0;left:0;width:264px;z-index:45;transform:translateX(-105%);transition:transform .25s ease}
+  .sidebar.open{transform:none;box-shadow:0 0 44px rgba(0,0,0,.4)}
+  .menu-btn{display:grid}
+  .nav-item{padding:10px 12px}
+  .statusbar{grid-column:1}
+  .card-body{overflow-x:auto}
+  .card-body table{min-width:560px}
+  .stack-table table{min-width:0}
+  .search{max-width:none}
+}
+
+@media (max-width:600px){
+  .content{padding:14px 12px 22px}
+  .topbar{padding:0 12px;gap:10px}
+  .site-select{display:none}
+  .crumb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .page-head h1{font-size:17px}
+  .kpis{gap:9px}
+  .kpi{padding:11px 12px 10px}
+  .kpi .n{font-size:22px}
+  .card-body{padding:13px}
+  .hint{display:none}
+  .controls button{flex:1 1 auto;white-space:nowrap}
+  .statusbar{padding:7px 12px;gap:10px}
+  .statusbar .right{display:none}
+  /* ocorrências: tabela vira cards empilhados (sem scroll horizontal) */
+  .stack-table thead{display:none}
+  .stack-table table,.stack-table tbody,.stack-table tr{display:block;width:100%}
+  .stack-table tr{border:1px solid var(--border);border-radius:10px;padding:3px 12px;margin-bottom:10px;background:var(--panel-2)}
+  .stack-table tr:last-child{margin-bottom:0}
+  .stack-table tr:hover td{background:transparent}
+  .stack-table td{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .stack-table td:last-child{border-bottom:none}
+  .stack-table td::before{content:attr(data-label);font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);flex-shrink:0}
+}
+
+@media (max-width:430px){.top-clock{display:none}.kpi .d{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">V</div>
+      <div class="brand-name">Vipper<small>Access Control</small></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Operação</div>
+      <a class="nav-item active" data-page="live"><span class="ic">◉</span> Monitoramento ao vivo</a>
+      <a class="nav-item" data-page="cameras"><span class="ic">🎥</span> Câmeras</a>
+      <a class="nav-item" data-page="ocorrencias"><span class="ic">⚠</span> Ocorrências <span class="count" id="navViol"></span></a>
+      <div class="nav-section">Gestão</div>
+      <a class="nav-item" data-page="veiculos"><span class="ic">🚘</span> Veículos cadastrados</a>
+      <a class="nav-item" data-page="pessoas"><span class="ic">👥</span> Moradores &amp; visitantes</a>
+      <a class="nav-item" data-page="relatorios"><span class="ic">📄</span> Relatórios</a>
+      <div class="nav-section">Sistema</div>
+      <a class="nav-item" data-page="integracoes"><span class="ic">🔌</span> Integrações</a>
+      <a class="nav-item" data-page="config"><span class="ic">⚙</span> Configurações</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="avatar">OP</div>
+      <div><div class="sf-name">Operador — Portaria</div><div class="sf-role">Turno diurno · 06h–18h</div></div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" title="Abrir menu">☰</button>
+      <span class="crumb"><span id="crumbSec" style="color:var(--muted);margin:0">Operação</span> <span>/</span> <b id="crumbPage">Monitoramento ao vivo</b></span>
+      <div class="spacer"></div>
+      <div class="site-select"><span class="dot"></span> Condomínio Central <small>· Portaria 01</small></div>
+      <span class="top-clock" id="topClock">--:--:--</span>
+      <button class="icon-btn" id="themeToggle" title="Alternar tema claro/escuro">🌙</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== TELA: MONITORAMENTO AO VIVO ===== -->
+      <div class="page active" id="page-live">
+      <div class="page-head">
+        <div>
+          <h1>Portaria 01 — Cancela principal</h1>
+          <p class="sub">Detecção de carona (tailgating) por leitura automática de placas · Ambiente de demonstração com dados fictícios</p>
+        </div>
+        <div class="head-right">
+          <span class="env-chip">Simulação</span>
+          <div class="status-pill" data-state="IDLE" id="statusPill"><span class="status-dot"></span><span id="statusText">CANCELA FECHADA</span></div>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi info"><div class="l">Ciclos de acesso</div><div class="n" id="kCycles">0</div><div class="d">desde o início da sessão</div></div>
+        <div class="kpi ok"><div class="l">Placas lidas</div><div class="n" id="kReads">0</div><div class="d">motor LPR · confiança média 98%</div></div>
+        <div class="kpi bad"><div class="l">Violações (carona)</div><div class="n" id="kViol">0</div><div class="d">passagem com cancela aberta</div></div>
+        <div class="kpi"><div class="l">Conformidade</div><div class="n" id="kConf">—</div><div class="d">acessos autorizados / total</div></div>
+      </div>
+
+      <div class="grid">
+
+        <!-- COLUNA CÂMERA -->
+        <div class="col">
+          <div class="card">
+            <div class="card-head"><h2>CAM-01 · Visão da cancela</h2><span class="live">AO VIVO</span></div>
+            <div class="card-body">
+              <div class="viewfinder" id="viewfinder">
+                <span class="vf-corner tl"></span><span class="vf-corner tr"></span><span class="vf-corner bl"></span><span class="vf-corner br"></span>
+                <div class="vf-top"><span class="vf-rec">● REC</span><span class="vf-time" id="vfTime">00:00:00</span></div>
+                <span class="cam-label">CAM-01 · PORTARIA 01 · 25 FPS · H.265</span>
+                <span class="vf-meta">1920×1080 · LPR ATIVO</span>
+                <div class="lane"></div>
+                <div class="lpr-line"></div>
+                <div class="barrier-scene"><div class="barrier-arm" id="barrierArm"></div><div class="barrier-post"></div></div>
+                <div class="osd" id="osd"></div>
+              </div>
+              <div>
+                <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+                <p class="progress-label" id="progressLabel">Janela do ciclo (cancela aberta)</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Console do operador</h2><span class="tag">Controle manual</span></div>
+            <div class="card-body">
+              <div class="controls">
+                <button class="btn-primary" id="btnLiberar">Liberar cancela</button>
+                <button class="btn-ghost" id="btnFechar" disabled>Fechar cancela</button>
+              </div>
+              <div class="console-sec">Ferramentas de simulação</div>
+              <div class="controls">
+                <button class="btn-warn" id="btnCarona" disabled>Simular veículo carona</button>
+                <button class="btn-demo" id="btnDemo">▶ Executar ciclo demonstrativo</button>
+                <button class="btn-ghost" id="btnReset">Reiniciar sessão</button>
+              </div>
+              <p class="hint">Atalhos <b>L</b> liberar <b>C</b> carona <b>F</b> fechar <b>R</b> reiniciar</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUNA DADOS -->
+        <div class="col">
+          <div class="card">
+            <div class="card-head"><h2>Log de eventos</h2><span class="tag">Tempo real</span></div>
+            <div class="card-body"><div class="log" id="log"><div class="log-empty">Aguardando primeiro ciclo...</div></div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Ocorrências — carona detectada</h2><span class="tag">Sessão atual</span></div>
+            <div class="card-body"><div id="violationsWrap" class="stack-table"><div class="empty-state">Nenhuma ocorrência registrada nesta sessão</div></div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Integração — último evento</h2><span class="tag"><span class="method-chip">POST</span> /api/v1/eventos</span></div>
+            <div class="card-body"><pre id="jsonPreview">// aguardando eventos...</pre></div>
+          </div>
+        </div>
+
+      </div>
+      </div><!-- /page-live -->
+
+      <!-- ===== TELA: CÂMERAS ===== -->
+      <div class="page" id="page-cameras">
+        <div class="page-head">
+          <div><h1>Câmeras</h1><p class="sub">Dispositivos de captura vinculados à unidade · 3 de 4 online</p></div>
+          <div class="head-right"><button class="btn-ghost" onclick="toast('Varredura concluída — nenhum dispositivo novo encontrado')">Buscar dispositivos</button></div>
+        </div>
+        <div class="cam-grid">
+          <div class="cam-card"><div class="cam-prev"><span class="lbl">PRÉ-VISUALIZAÇÃO · 25 FPS</span></div>
+            <div class="cam-info"><div><div class="nm">CAM-01 · Portaria 01 — Entrada</div><div class="mt">192.168.0.21 · H.265 · LPR ATIVO</div></div><span class="st tag-ok">Online</span></div></div>
+          <div class="cam-card"><div class="cam-prev"><span class="lbl">PRÉ-VISUALIZAÇÃO · 25 FPS</span></div>
+            <div class="cam-info"><div><div class="nm">CAM-02 · Portaria 01 — Saída</div><div class="mt">192.168.0.22 · H.265 · LPR ATIVO</div></div><span class="st tag-ok">Online</span></div></div>
+          <div class="cam-card"><div class="cam-prev"><span class="lbl">PRÉ-VISUALIZAÇÃO · 15 FPS</span></div>
+            <div class="cam-info"><div><div class="nm">CAM-03 · Garagem — Bloco B</div><div class="mt">192.168.0.23 · H.264 · LPR INATIVO</div></div><span class="st tag-ok">Online</span></div></div>
+          <div class="cam-card"><div class="cam-prev off"><span class="lbl">SEM SINAL</span></div>
+            <div class="cam-info"><div><div class="nm">CAM-04 · Acesso de serviço</div><div class="mt">192.168.0.24 · Última conexão há 2 dias</div></div><span class="st tag-off">Offline</span></div></div>
+        </div>
+      </div>
+
+      <!-- ===== TELA: OCORRÊNCIAS ===== -->
+      <div class="page" id="page-ocorrencias">
+        <div class="page-head">
+          <div><h1>Ocorrências</h1><p class="sub">Registros de carona detectada (passagem com cancela aberta)</p></div>
+          <div class="head-right">
+            <select class="field"><option>Últimos 7 dias</option><option>Últimos 30 dias</option><option>Este mês</option></select>
+            <button class="btn-ghost" onclick="toast('Exportação CSV gerada (demonstração)')">Exportar CSV</button>
+          </div>
+        </div>
+        <div class="card"><div class="card-body"><div id="occWrap" class="stack-table"></div></div></div>
+      </div>
+
+      <!-- ===== TELA: VEÍCULOS ===== -->
+      <div class="page" id="page-veiculos">
+        <div class="page-head">
+          <div><h1>Veículos cadastrados</h1><p class="sub">Base de placas autorizadas usada pelo motor LPR</p></div>
+          <div class="head-right"><button class="btn-primary" onclick="toast('Cadastro de veículo disponível na versão completa')">+ Cadastrar veículo</button></div>
+        </div>
+        <div class="toolbar"><input class="field search" id="vehSearch" placeholder="Buscar por placa, modelo, proprietário ou unidade..."></div>
+        <div class="card"><div class="card-body"><div id="vehWrap" class="stack-table"></div></div></div>
+      </div>
+
+      <!-- ===== TELA: MORADORES ===== -->
+      <div class="page" id="page-pessoas">
+        <div class="page-head">
+          <div><h1>Moradores &amp; visitantes</h1><p class="sub">Pessoas vinculadas aos veículos autorizados da unidade</p></div>
+          <div class="head-right"><button class="btn-primary" onclick="toast('Cadastro de pessoa disponível na versão completa')">+ Adicionar pessoa</button></div>
+        </div>
+        <div class="toolbar"><input class="field search" id="pplSearch" placeholder="Buscar por nome, unidade ou vínculo..."></div>
+        <div class="card"><div class="card-body"><div id="pplWrap" class="stack-table"></div></div></div>
+      </div>
+
+      <!-- ===== TELA: RELATÓRIOS ===== -->
+      <div class="page" id="page-relatorios">
+        <div class="page-head">
+          <div><h1>Relatórios</h1><p class="sub">Consolidados gerados a partir dos eventos do motor LPR</p></div>
+          <div class="head-right"><select class="field"><option>Junho / 2026</option><option>Maio / 2026</option><option>Abril / 2026</option></select></div>
+        </div>
+        <div class="report-grid">
+          <div class="report-card"><span class="ic">🚨</span><h3>Ocorrências por período</h3><p>Consolidado de caronas detectadas com placa, horário, câmera e snapshot de cada evento.</p>
+            <div class="acts"><button class="btn-ghost" onclick="toast('Relatório de ocorrências gerado em PDF (demonstração)')">Gerar PDF</button><button class="btn-ghost" onclick="toast('CSV exportado (demonstração)')">CSV</button></div></div>
+          <div class="report-card"><span class="ic">🚦</span><h3>Fluxo de veículos</h3><p>Volume de ciclos de acesso e leituras de placa por dia e faixa horária da portaria.</p>
+            <div class="acts"><button class="btn-ghost" onclick="toast('Relatório de fluxo gerado em PDF (demonstração)')">Gerar PDF</button><button class="btn-ghost" onclick="toast('CSV exportado (demonstração)')">CSV</button></div></div>
+          <div class="report-card"><span class="ic">🧾</span><h3>Auditoria de ciclos</h3><p>Trilha completa de abertura e fechamento da cancela com origem do comando (operador ou automático).</p>
+            <div class="acts"><button class="btn-ghost" onclick="toast('Relatório de auditoria gerado em PDF (demonstração)')">Gerar PDF</button><button class="btn-ghost" onclick="toast('CSV exportado (demonstração)')">CSV</button></div></div>
+          <div class="report-card"><span class="ic">📈</span><h3>Conformidade mensal</h3><p>Evolução do índice de conformidade e reincidência de violações por unidade do condomínio.</p>
+            <div class="acts"><button class="btn-ghost" onclick="toast('Relatório de conformidade gerado em PDF (demonstração)')">Gerar PDF</button><button class="btn-ghost" onclick="toast('CSV exportado (demonstração)')">CSV</button></div></div>
+        </div>
+      </div>
+
+      <!-- ===== TELA: INTEGRAÇÕES ===== -->
+      <div class="page" id="page-integracoes">
+        <div class="page-head">
+          <div><h1>Integrações</h1><p class="sub">Conexões do Vipper com sistemas externos e dispositivos</p></div>
+        </div>
+        <div class="stack">
+          <div class="row-card"><span class="ic">🔗</span>
+            <div class="tx"><h3>Webhook de eventos</h3><p>Envia <code>plate_read</code> e <code>gate_cycle</code> em tempo real para <code>POST /api/v1/eventos</code></p></div>
+            <span class="tag-ok">Ativo</span><span class="switch on"></span></div>
+          <div class="row-card"><span class="ic">✉️</span>
+            <div class="tx"><h3>Notificações por e-mail</h3><p>SMTP configurado · alertas de ocorrência para <code>sindico@condominiocentral.com.br</code></p></div>
+            <span class="tag-ok">Ativo</span><span class="switch on"></span></div>
+          <div class="row-card"><span class="ic">💬</span>
+            <div class="tx"><h3>WhatsApp Business</h3><p>Alertas de ocorrência em tempo real para o grupo da administração do condomínio.</p></div>
+            <span class="tag-off">Não configurado</span><span class="switch"></span></div>
+          <div class="row-card"><span class="ic">📹</span>
+            <div class="tx"><h3>ONVIF / RTSP</h3><p>Descoberta automática de câmeras compatíveis na rede local · 4 dispositivos vinculados.</p></div>
+            <span class="tag-ok">Ativo</span><span class="switch on"></span></div>
+        </div>
+      </div>
+
+      <!-- ===== TELA: CONFIGURAÇÕES ===== -->
+      <div class="page" id="page-config">
+        <div class="page-head">
+          <div><h1>Configurações</h1><p class="sub">Parâmetros operacionais da Portaria 01</p></div>
+          <div class="head-right"><button class="btn-primary" onclick="toast('Configurações salvas com sucesso')">Salvar alterações</button></div>
+        </div>
+        <div class="stack">
+          <div class="row-card"><span class="ic">⏱</span>
+            <div class="tx"><h3>Tempo de abertura da cancela</h3><p>Duração da janela do ciclo antes do fechamento automático — vale a partir do próximo ciclo.</p></div>
+            <select class="field" id="cfgGate"><option value="5000">5 segundos</option><option value="8000" selected>8 segundos</option><option value="12000">12 segundos</option><option value="15000">15 segundos</option></select></div>
+          <div class="row-card"><span class="ic">🔒</span>
+            <div class="tx"><h3>Fechamento automático</h3><p>Fecha a cancela ao fim da janela mesmo sem comando do operador.</p></div>
+            <span class="switch on"></span></div>
+          <div class="row-card"><span class="ic">🎯</span>
+            <div class="tx"><h3>Confiança mínima do LPR</h3><p>Leituras abaixo do limiar são encaminhadas para revisão manual do operador.</p></div>
+            <select class="field"><option>90%</option><option selected>95%</option><option>98%</option></select></div>
+          <div class="row-card"><span class="ic">🔔</span>
+            <div class="tx"><h3>Alerta sonoro na violação</h3><p>Emite aviso sonoro no posto do operador quando uma carona é detectada.</p></div>
+            <span class="switch"></span></div>
+          <div class="row-card"><span class="ic">✉️</span>
+            <div class="tx"><h3>Notificar administração por e-mail</h3><p>Envia resumo da ocorrência com placa e snapshot em até 1 minuto após a detecção.</p></div>
+            <span class="switch on"></span></div>
+          <div class="row-card"><span class="ic">🖼</span>
+            <div class="tx"><h3>Armazenar snapshot das ocorrências</h3><p>Retém as imagens capturadas por 90 dias, conforme política de privacidade do condomínio.</p></div>
+            <span class="switch on"></span></div>
+        </div>
+      </div>
+
+      <div id="toast"></div>
+    </div>
+
+    <div class="statusbar">
+      <span>Vipper LPR Engine <span class="ok">v2.4.1</span></span><span class="sep">|</span>
+      <span class="ok">● Conectado</span><span class="sep">|</span>
+      <span>Latência <span id="sbLat">12</span> ms</span><span class="sep">|</span>
+      <span>CAM-01 online</span>
+      <span class="right">Sessão iniciada às <span id="sbStart">--:--</span> · Ambiente de demonstração</span>
+    </div>
+  </div>
+</div>
+
+<script>
+let OPEN_DURATION=8000;
+const state={current:'IDLE',cycleCount:0,reads:0,events:[],violations:[]};
+let progressInterval=null,demoRunning=false;
+const $=id=>document.getElementById(id);
+const el={statusPill:$('statusPill'),statusText:$('statusText'),barrierArm:$('barrierArm'),viewfinder:$('viewfinder'),osd:$('osd'),vfTime:$('vfTime'),progressFill:$('progressFill'),progressLabel:$('progressLabel'),log:$('log'),violationsWrap:$('violationsWrap'),jsonPreview:$('jsonPreview'),btnLiberar:$('btnLiberar'),btnCarona:$('btnCarona'),btnFechar:$('btnFechar'),btnDemo:$('btnDemo'),btnReset:$('btnReset'),kCycles:$('kCycles'),kReads:$('kReads'),kViol:$('kViol'),kConf:$('kConf'),navViol:$('navViol'),topClock:$('topClock'),sbLat:$('sbLat'),sbStart:$('sbStart')};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const nowStr=()=>new Date().toLocaleTimeString('pt-BR',{hour12:false});
+setInterval(()=>{el.vfTime.textContent=nowStr();el.topClock.textContent=nowStr()},1000);
+el.vfTime.textContent=nowStr();el.topClock.textContent=nowStr();
+el.sbStart.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+setInterval(()=>el.sbLat.textContent=9+Math.floor(Math.random()*9),4000);
+
+function randomPlate(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ',D='0123456789',p=s=>s[Math.floor(Math.random()*s.length)];return p(L)+p(L)+p(L)+p(D)+p(L)+p(D)+p(D)}
+const plateChip=p=>'<span class="plate"><span class="band">BRASIL</span><span class="num">'+p+'</span></span>';
+
+function setState(n){state.current=n;el.statusPill.dataset.state=n;el.statusText.textContent={IDLE:'CANCELA FECHADA',OPENING:'CANCELA ABRINDO...',OPEN:'CANCELA ABERTA',CLOSING:'CANCELA FECHANDO...'}[n]}
+function updKpis(){
+  el.kCycles.textContent=state.cycleCount;el.kReads.textContent=state.reads;el.kViol.textContent=state.violations.length;
+  el.kConf.textContent=state.reads?Math.round((state.reads-state.violations.length)/state.reads*100)+'%':'—';
+  el.navViol.textContent=state.violations.length||'';
+}
+function addLog(text,type){state.events.unshift({time:nowStr(),text,type});renderLog()}
+function renderLog(){el.log.innerHTML=state.events.length?state.events.slice(0,20).map(e=>'<div class="log-row '+e.type+'"><span class="t">'+e.time+'</span><span>'+e.text+'</span></div>').join(''):'<div class="log-empty">Aguardando primeiro ciclo...</div>'}
+function renderViolations(){el.violationsWrap.innerHTML=state.violations.length?'<table><thead><tr><th>Placa</th><th>Horário</th><th>Ciclo</th><th>Status</th></tr></thead><tbody>'+state.violations.map(v=>'<tr><td data-label="Placa">'+plateChip(v.plate)+'</td><td data-label="Horário">'+v.time+'</td><td data-label="Ciclo">#'+v.cycle+'</td><td data-label="Status"><span class="badge">Notificação pendente</span></td></tr>').join('')+'</tbody></table>':'<div class="empty-state">Nenhuma ocorrência registrada nesta sessão</div>';renderOcc()}
+function updateJson(o){el.jsonPreview.textContent=typeof o==='string'?o:JSON.stringify(o,null,2)}
+function showOsd(plate,kind){
+  const conf=(96+Math.random()*3.8).toFixed(1);
+  el.osd.innerHTML=plateChip(plate)+'<span class="tag">'+(kind==='auth'?'✓ AUTORIZADA':'⚠ CARONA DETECTADA')+'<small>confiança '+conf+'%</small></span>';
+  el.osd.className='osd show'+(kind==='violation'?' violation':'');
+  clearTimeout(showOsd._t);showOsd._t=setTimeout(()=>el.osd.classList.remove('show'),2300);
+}
+function spawnCar(kind){const c=document.createElement('div');c.className='car';c.textContent=kind==='violation'?'🚙':'🚗';el.viewfinder.appendChild(c);setTimeout(()=>c.remove(),2700)}
+function flashViewfinder(){el.viewfinder.classList.remove('flash');void el.viewfinder.offsetWidth;el.viewfinder.classList.add('flash')}
+
+function startProgress(){let e=0;el.progressFill.style.width='0%';progressInterval=setInterval(()=>{e+=100;el.progressFill.style.width=Math.min(100,e/OPEN_DURATION*100)+'%';el.progressLabel.textContent='Janela do ciclo — fechamento automático em '+Math.ceil((OPEN_DURATION-e)/1000)+'s';if(e>=OPEN_DURATION){clearInterval(progressInterval);fecharCancela()}},100)}
+function stopProgress(){clearInterval(progressInterval);el.progressFill.style.width='0%';el.progressLabel.textContent='Janela do ciclo (cancela aberta)'}
+
+function liberarCancela(){
+  if(state.current!=='IDLE')return;
+  state.cycleCount++;setState('OPENING');el.btnLiberar.disabled=true;
+  addLog('Ciclo #'+state.cycleCount+' iniciado — cancela liberada','info');
+  spawnCar('auth');
+  setTimeout(()=>{
+    el.barrierArm.classList.add('open');setState('OPEN');
+    const plate=randomPlate();state.reads++;
+    showOsd(plate,'auth');
+    addLog('Placa <b>'+plate+'</b> — autorizada (1º veículo)','success');
+    updateJson({event:'plate_read',plate,authorized:true,cycle:state.cycleCount,timestamp:new Date().toISOString()});
+    el.btnCarona.disabled=false;el.btnFechar.disabled=false;
+    updKpis();startProgress();
+  },850);
+}
+function simularCarona(){
+  if(state.current!=='OPEN')return;
+  const plate=randomPlate();state.reads++;
+  spawnCar('violation');showOsd(plate,'violation');flashViewfinder();
+  addLog('Placa <b>'+plate+'</b> — CARONA (cancela ainda aberta)','violation');
+  state.violations.unshift({plate,time:nowStr(),cycle:state.cycleCount});
+  renderViolations();updKpis();
+  updateJson({event:'plate_read',plate,authorized:false,violation:true,cycle:state.cycleCount,timestamp:new Date().toISOString()});
+}
+function fecharCancela(){
+  if(state.current!=='OPEN')return;
+  stopProgress();setState('CLOSING');el.btnCarona.disabled=true;el.btnFechar.disabled=true;
+  setTimeout(()=>{
+    el.barrierArm.classList.remove('open');setState('IDLE');
+    addLog('Ciclo #'+state.cycleCount+' finalizado — cancela fechada','info');
+    updateJson({event:'gate_cycle',action:'closed',cycle:state.cycleCount,timestamp:new Date().toISOString()});
+    el.btnLiberar.disabled=false;
+  },850);
+}
+async function demoAuto(){
+  if(state.current!=='IDLE'||demoRunning)return;
+  demoRunning=true;el.btnDemo.disabled=true;el.btnReset.disabled=true;
+  liberarCancela();await sleep(2400);
+  simularCarona();await sleep(1500);
+  simularCarona();await sleep(1700);
+  fecharCancela();await sleep(1200);
+  demoRunning=false;el.btnDemo.disabled=false;el.btnReset.disabled=false;
+}
+function reiniciar(){
+  if(demoRunning)return;
+  stopProgress();setState('IDLE');
+  state.cycleCount=0;state.reads=0;state.events=[];state.violations=[];
+  el.barrierArm.classList.remove('open');el.osd.classList.remove('show');
+  el.viewfinder.querySelectorAll('.car').forEach(c=>c.remove());
+  renderLog();renderViolations();updKpis();
+  updateJson('// aguardando eventos...');
+  el.btnLiberar.disabled=false;el.btnCarona.disabled=true;el.btnFechar.disabled=true;
+}
+el.btnLiberar.onclick=liberarCancela;el.btnCarona.onclick=simularCarona;el.btnFechar.onclick=fecharCancela;el.btnDemo.onclick=demoAuto;el.btnReset.onclick=reiniciar;
+document.addEventListener('keydown',e=>{if(e.repeat||demoRunning||!$('page-live').classList.contains('active'))return;const k=e.key.toLowerCase();if(k==='l')liberarCancela();else if(k==='c')simularCarona();else if(k==='f')fecharCancela();else if(k==='r')reiniciar()});
+
+/* ===== NAVEGAÇÃO ENTRE TELAS ===== */
+const PAGES={live:['Operação','Monitoramento ao vivo'],cameras:['Operação','Câmeras'],ocorrencias:['Operação','Ocorrências'],veiculos:['Gestão','Veículos cadastrados'],pessoas:['Gestão','Moradores & visitantes'],relatorios:['Gestão','Relatórios'],integracoes:['Sistema','Integrações'],config:['Sistema','Configurações']};
+function goPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));
+  document.querySelectorAll('.nav-item[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
+  $('crumbSec').textContent=PAGES[p][0];$('crumbPage').textContent=PAGES[p][1];
+  closeMenu();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav-item[data-page]').forEach(x=>x.onclick=()=>goPage(x.dataset.page));
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2600)}
+
+/* ===== DADOS DEMONSTRATIVOS (fictícios) ===== */
+const tbl=(heads,rows)=>'<table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table>';
+
+const MOCK_OCC=[
+ ['RTX4B21','02/07/2026 18:42','CAM-01','#214','Em análise','tag-warn'],
+ ['MZK7Q10','02/07/2026 12:07','CAM-01','#182','Notificada','tag-info'],
+ ['HPL2E88','01/07/2026 19:23','CAM-01','#141','Notificada','tag-info'],
+ ['QWD9C34','30/06/2026 08:15','CAM-01','#97','Resolvida','tag-ok'],
+ ['JBN5K02','28/06/2026 21:51','CAM-01','#46','Resolvida','tag-ok']];
+function renderOcc(){
+  const live=state.violations.map(v=>['<b>'+v.plate+'</b>','hoje '+v.time,'CAM-01','#'+v.cycle,'Notificação pendente','badge']);
+  const rows=live.concat(MOCK_OCC).map(o=>'<tr><td data-label="Placa">'+plateChip(o[0].replace(/<\/?b>/g,''))+'</td><td data-label="Data / hora">'+o[1]+'</td><td data-label="Câmera">'+o[2]+'</td><td data-label="Ciclo">'+o[3]+'</td><td data-label="Status"><span class="'+o[5]+'">'+o[4]+'</span></td></tr>');
+  $('occWrap').innerHTML=tbl(['Placa','Data / hora','Câmera','Ciclo','Status'],rows);
+}
+
+const VEH=[
+ ['SQP7D33','Fiat Argo Drive 1.3','Prata','Marcos Vilela','Bloco A · 101','Ativo'],
+ ['BRA2E19','VW T-Cross Highline','Branco','Ana Paula Corrêa','Bloco A · 204','Ativo'],
+ ['FZC8A07','Chevrolet Onix LT','Preto','Roberto Nunes','Bloco B · 302','Ativo'],
+ ['KYT3H55','Hyundai HB20S Vision','Cinza','Juliana Freitas','Bloco B · 105','Ativo'],
+ ['PWX5C90','Toyota Corolla XEi','Prata','Carlos Eduardo Lima','Bloco C · 401','Bloqueado'],
+ ['RLM9F12','Honda HR-V EXL','Azul','Fernanda Souza','Bloco C · 203','Ativo'],
+ ['GHD4J78','Jeep Renegade Sport','Vermelho','Paulo Henrique Dias','Bloco A · 303','Ativo']];
+function renderVeh(f=''){
+  f=f.toLowerCase();
+  const rows=VEH.filter(v=>v.join(' ').toLowerCase().includes(f)).map(v=>'<tr><td data-label="Placa">'+plateChip(v[0])+'</td><td data-label="Modelo">'+v[1]+'</td><td data-label="Cor">'+v[2]+'</td><td data-label="Proprietário">'+v[3]+'</td><td data-label="Unidade">'+v[4]+'</td><td data-label="Situação"><span class="'+(v[5]==='Ativo'?'tag-ok':'tag-off')+'">'+v[5]+'</span></td></tr>');
+  $('vehWrap').innerHTML=rows.length?tbl(['Placa','Modelo','Cor','Proprietário','Unidade','Situação'],rows):'<div class="empty-state">Nenhum veículo encontrado para a busca</div>';
+}
+$('vehSearch').oninput=e=>renderVeh(e.target.value);
+
+const PPL=[
+ ['Marcos Vilela','Bloco A · 101','Morador','tag-info',1,'hoje 07:42','Ativo'],
+ ['Ana Paula Corrêa','Bloco A · 204','Morador','tag-info',1,'hoje 08:15','Ativo'],
+ ['Roberto Nunes','Bloco B · 302','Morador','tag-info',1,'ontem 19:03','Ativo'],
+ ['Juliana Freitas','Bloco B · 105','Morador','tag-info',1,'hoje 06:58','Ativo'],
+ ['Carlos Eduardo Lima','Bloco C · 401','Morador','tag-info',1,'12/06/2026','Suspenso'],
+ ['Elaine Barros','Bloco A · 101','Visitante','tag-warn',0,'01/07/2026 14:20','Ativo'],
+ ['TecFrio Refrigeração','Prestador de serviço','Prestador','tag-off',1,'30/06/2026 09:12','Ativo']];
+function renderPpl(f=''){
+  f=f.toLowerCase();
+  const rows=PPL.filter(p=>p.join(' ').toLowerCase().includes(f)).map(p=>'<tr><td data-label="Nome">'+p[0]+'</td><td data-label="Unidade">'+p[1]+'</td><td data-label="Vínculo"><span class="'+p[3]+'">'+p[2]+'</span></td><td data-label="Veículos">'+p[4]+'</td><td data-label="Último acesso">'+p[5]+'</td><td data-label="Situação"><span class="'+(p[6]==='Ativo'?'tag-ok':'tag-off')+'">'+p[6]+'</span></td></tr>');
+  $('pplWrap').innerHTML=rows.length?tbl(['Nome','Unidade','Vínculo','Veículos','Último acesso','Situação'],rows):'<div class="empty-state">Nenhuma pessoa encontrada para a busca</div>';
+}
+$('pplSearch').oninput=e=>renderPpl(e.target.value);
+
+/* configurações e integrações (interações de demonstração) */
+$('cfgGate').onchange=e=>{OPEN_DURATION=+e.target.value;toast('Tempo de abertura: '+OPEN_DURATION/1000+'s — vale a partir do próximo ciclo')};
+document.querySelectorAll('.switch').forEach(s=>s.onclick=()=>{s.classList.toggle('on');toast(s.classList.contains('on')?'Recurso ativado':'Recurso desativado')});
+
+renderOcc();renderVeh();renderPpl();
+
+/* ===== TEMA CLARO / ESCURO ===== */
+const themeBtn=$('themeToggle');
+function applyTheme(t){document.documentElement.dataset.theme=t;themeBtn.textContent=t==='dark'?'☀️':'🌙';try{localStorage.setItem('vipper-theme',t)}catch(e){}}
+themeBtn.onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+themeBtn.textContent=document.documentElement.dataset.theme==='dark'?'☀️':'🌙';
+
+/* ===== MENU MOBILE ===== */
+const sbEl=document.querySelector('.sidebar'),scrimEl=$('scrim');
+function closeMenu(){sbEl.classList.remove('open');scrimEl.classList.remove('show')}
+$('menuBtn').onclick=()=>{sbEl.classList.toggle('open');scrimEl.classList.toggle('show')};
+scrimEl.onclick=closeMenu;
+</script>
+</body>
+</html>
